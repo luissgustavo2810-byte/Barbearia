@@ -12,6 +12,8 @@ import ScreenHero from '../components/ScreenHero';
 import {
   getUserNextAppointment,
   cancelAppointment,
+  getUserSubscription,
+  cancelSubscription,
 } from '../services/bookingService';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -49,13 +51,22 @@ function BookingDetailCard({ theme, icon, label, value }) {
         },
       ]}
     >
-      <View style={[styles.smallIconBox, { backgroundColor: `${theme.primary}18` }]}>
+      <View
+        style={[
+          styles.smallIconBox,
+          { backgroundColor: `${theme.primary}18` },
+        ]}
+      >
         <Ionicons name={icon} size={16} color={theme.primary} />
       </View>
 
       <View style={{ flex: 1 }}>
-        <Text style={[styles.bookingLabel, { color: theme.text }]}>{label}</Text>
-        <Text style={[styles.bookingValue, { color: theme.text }]}>{value}</Text>
+        <Text style={[styles.bookingLabel, { color: theme.text }]}>
+          {label}
+        </Text>
+        <Text style={[styles.bookingValue, { color: theme.text }]}>
+          {value}
+        </Text>
       </View>
     </View>
   );
@@ -63,23 +74,67 @@ function BookingDetailCard({ theme, icon, label, value }) {
 
 export default function ProfileScreen({ theme, user, onLogout }) {
   const [booking, setBooking] = useState(null);
+  const [subscription, setSubscription] = useState(null);
 
   useEffect(() => {
-    loadBooking();
+    loadData();
   }, []);
-  
+
   useFocusEffect(
-  useCallback(() => {
-    loadBooking();
-  }, [])
-);
-  const loadBooking = async () => {
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
+
+  const loadData = async () => {
     try {
-      const data = await getUserNextAppointment(user.id);
-      setBooking(data);
+      const [bookingData, subscriptionData] = await Promise.all([
+        getUserNextAppointment(user.id),
+        getUserSubscription(user.id),
+      ]);
+
+      setBooking(bookingData || null);
+      setSubscription(subscriptionData || null);
     } catch (error) {
       setBooking(null);
+      setSubscription(null);
     }
+  };
+
+  const handleCancelSubscription = () => {
+    if (!subscription?.id) return;
+
+    Alert.alert(
+      'Cancelar assinatura',
+      'Você continuará com os benefícios até o final da validade do plano.',
+      [
+        {
+          text: 'Voltar',
+          style: 'cancel',
+        },
+        {
+          text: 'Cancelar assinatura',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelSubscription(subscription.id);
+
+              Alert.alert(
+                'Assinatura cancelada',
+                'Seu plano permanecerá ativo até o vencimento.'
+              );
+
+              loadData();
+            } catch (error) {
+              Alert.alert(
+                'Erro',
+                'Não foi possível cancelar a assinatura.'
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleCancelBooking = () => {
@@ -140,8 +195,105 @@ export default function ProfileScreen({ theme, user, onLogout }) {
           theme={theme}
           icon="card-outline"
           label="Assinatura"
-          value={user.plan || 'Sem plano ativo'}
+          value={subscription?.plans?.name || 'Sem plano ativo'}
         />
+
+        {subscription && (
+          <View
+            style={[
+              styles.bookingCard,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.muted,
+              },
+            ]}
+          >
+            <View style={styles.bookingHeader}>
+              <View
+                style={[
+                  styles.iconBox,
+                  { backgroundColor: `${theme.primary}18` },
+                ]}
+              >
+                <Ionicons
+                  name="diamond-outline"
+                  size={18}
+                  color={theme.primary}
+                />
+              </View>
+
+              <View>
+                <Text style={[styles.label, { color: theme.text }]}>
+                  Plano ativo
+                </Text>
+
+                <Text style={[styles.value, { color: theme.primary }]}>
+                  {subscription.plans?.name}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.bookingDetails}>
+              <BookingDetailCard
+                theme={theme}
+                icon="cash-outline"
+                label="Valor"
+                value={`R$ ${Number(
+                  subscription.plans?.price || 0
+                ).toFixed(2)}/mês`}
+              />
+
+              <BookingDetailCard
+                theme={theme}
+                icon="calendar-outline"
+                label="Validade"
+                value={
+                  subscription.expires_at
+                    ? new Date(subscription.expires_at)
+                        .toISOString()
+                        .split('T')[0]
+                    : 'Não informada'
+                }
+              />
+
+              <BookingDetailCard
+                theme={theme}
+                icon="checkmark-circle-outline"
+                label="Status"
+                value={subscription.status || 'active'}
+              />
+
+              {!!subscription.plans?.description && (
+                <BookingDetailCard
+                  theme={theme}
+                  icon="document-text-outline"
+                  label="Descrição"
+                  value={subscription.plans.description}
+                />
+              )}
+
+              {subscription.status === 'active' && (
+                <TouchableOpacity
+                  style={[
+                    styles.cancelButton,
+                    { borderColor: theme.primary },
+                  ]}
+                  onPress={handleCancelSubscription}
+                >
+                  <Ionicons
+                    name="close-circle-outline"
+                    size={17}
+                    color={theme.primary}
+                  />
+
+                  <Text style={[styles.cancelText, { color: theme.primary }]}>
+                    Cancelar assinatura
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
 
         <View
           style={[
@@ -153,14 +305,24 @@ export default function ProfileScreen({ theme, user, onLogout }) {
           ]}
         >
           <View style={styles.bookingHeader}>
-            <View style={[styles.iconBox, { backgroundColor: `${theme.primary}18` }]}>
-              <Ionicons name="calendar-outline" size={18} color={theme.primary} />
+            <View
+              style={[
+                styles.iconBox,
+                { backgroundColor: `${theme.primary}18` },
+              ]}
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={18}
+                color={theme.primary}
+              />
             </View>
 
             <View>
               <Text style={[styles.label, { color: theme.text }]}>
                 Próximo agendamento
               </Text>
+
               <Text style={[styles.value, { color: theme.text }]}>
                 {booking ? 'Serviço marcado' : 'Sem serviço marcado'}
               </Text>
@@ -173,7 +335,13 @@ export default function ProfileScreen({ theme, user, onLogout }) {
                 theme={theme}
                 icon="cut-outline"
                 label="Serviço"
-                value={booking.services?.name || 'Serviço'}
+                value={
+                  booking.appointment_services?.length > 0
+                    ? booking.appointment_services
+                        .map((item) => item.services?.name)
+                        .join(', ')
+                    : 'Serviço'
+                }
               />
 
               <BookingDetailCard
@@ -204,7 +372,12 @@ export default function ProfileScreen({ theme, user, onLogout }) {
                 ]}
                 onPress={handleCancelBooking}
               >
-                <Ionicons name="trash-outline" size={17} color={theme.primary} />
+                <Ionicons
+                  name="trash-outline"
+                  size={17}
+                  color={theme.primary}
+                />
+
                 <Text style={[styles.cancelText, { color: theme.primary }]}>
                   Cancelar agendamento
                 </Text>

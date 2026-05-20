@@ -29,6 +29,7 @@ export async function registerUser({ name, email, phone, password }) {
     phone,
     plan: null,
     booking: null,
+    role: 'client',
   };
 }
 
@@ -57,6 +58,7 @@ export async function loginUser({ email, password }) {
     phone: profile.phone,
     plan: null,
     booking: null,
+    role: profile?.role || 'client',
   };
 }
 

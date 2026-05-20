@@ -20,46 +20,17 @@ import {
   getBarbers,
   createAppointment,
   getUnavailableTimes,
+  getUserNextAppointment,
+  cancelAppointment,
+  getBlockedDates,
+  getBlockedWeekdays,
+  getBlockedTimesByDate,
 } from '../services/bookingService';
 
 LocaleConfig.locales['pt-br'] = {
-  monthNames: [
-    'Janeiro',
-    'Fevereiro',
-    'Março',
-    'Abril',
-    'Maio',
-    'Junho',
-    'Julho',
-    'Agosto',
-    'Setembro',
-    'Outubro',
-    'Novembro',
-    'Dezembro',
-  ],
-  monthNamesShort: [
-    'Jan.',
-    'Fev.',
-    'Mar.',
-    'Abr.',
-    'Mai.',
-    'Jun.',
-    'Jul.',
-    'Ago.',
-    'Set.',
-    'Out.',
-    'Nov.',
-    'Dez.',
-  ],
-  dayNames: [
-    'Domingo',
-    'Segunda-feira',
-    'Terça-feira',
-    'Quarta-feira',
-    'Quinta-feira',
-    'Sexta-feira',
-    'Sábado',
-  ],
+  monthNames: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
+  monthNamesShort: ['Jan.', 'Fev.', 'Abr.', 'Mai.', 'Jun.', 'Jul.', 'Ago.', 'Set.', 'Out.', 'Nov.', 'Dez.'],
+  dayNames: ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'],
   dayNamesShort: ['Dom.', 'Seg.', 'Ter.', 'Qua.', 'Qui.', 'Sex.', 'Sáb.'],
   today: 'Hoje',
 };
@@ -72,28 +43,13 @@ function FadeInSection({ children, delay = 0 }) {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 380,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 380,
-        delay,
-        useNativeDriver: true,
-      }),
+      Animated.timing(opacity, { toValue: 1, duration: 380, delay, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 380, delay, useNativeDriver: true }),
     ]).start();
   }, []);
 
   return (
-    <Animated.View
-      style={{
-        opacity,
-        transform: [{ translateY }],
-      }}
-    >
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
       {children}
     </Animated.View>
   );
@@ -101,29 +57,14 @@ function FadeInSection({ children, delay = 0 }) {
 
 function SectionCard({ theme, icon, title, subtitle, children }) {
   return (
-    <View
-      style={[
-        styles.sectionCard,
-        {
-          backgroundColor: theme.card,
-          borderColor: theme.muted,
-        },
-      ]}
-    >
+    <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.muted }]}>
       <View style={styles.sectionHeader}>
-        <View
-          style={[
-            styles.sectionIconWrap,
-            { backgroundColor: `${theme.primary}18` },
-          ]}
-        >
+        <View style={[styles.sectionIconWrap, { backgroundColor: `${theme.primary}18` }]}>
           <Ionicons name={icon} size={18} color={theme.primary} />
         </View>
 
         <View style={{ flex: 1 }}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            {title}
-          </Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
           {!!subtitle && (
             <Text style={[styles.sectionSubtitle, { color: theme.text }]}>
               {subtitle}
@@ -132,12 +73,7 @@ function SectionCard({ theme, icon, title, subtitle, children }) {
         </View>
       </View>
 
-      <View
-        style={[
-          styles.sectionDivider,
-          { backgroundColor: theme.muted },
-        ]}
-      />
+      <View style={[styles.sectionDivider, { backgroundColor: theme.muted }]} />
 
       {children}
     </View>
@@ -147,20 +83,10 @@ function SectionCard({ theme, icon, title, subtitle, children }) {
 export default function HomeScreen({ theme, themeName, user }) {
   const [servicesList, setServicesList] = useState([]);
   const [barbers, setBarbers] = useState([]);
-
-  const times = [
-    '09:00',
-    '10:00',
-    '11:00',
-    '12:00',
-    '13:00',
-    '14:00',
-    '15:00',
-    '16:00',
-    '17:00',
-  ];
-
   const [unavailableTimes, setUnavailableTimes] = useState([]);
+
+  const [blockedDates, setBlockedDates] = useState([]);
+  const [blockedWeekdays, setBlockedWeekdays] = useState([]);
 
   const [selectedServices, setSelectedServices] = useState([]);
   const [selectedBarber, setSelectedBarber] = useState(null);
@@ -169,51 +95,185 @@ export default function HomeScreen({ theme, themeName, user }) {
   const [bookingLoading, setBookingLoading] = useState(false);
 
   const buttonScale = useRef(new Animated.Value(1)).current;
+
+  const times = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+
   useEffect(() => {
     loadInitialData();
   }, []);
 
+  useEffect(() => {
+    if (selectedBarber && selectedDay) {
+      loadUnavailableTimes();
+    } else {
+      setUnavailableTimes([]);
+    }
+  }, [selectedBarber, selectedDay]);
+
+  const getWeekdayFromDate = (dateString) => {
+    return new Date(`${dateString}T00:00:00`).getDay();
+  };
+
+  const isDateBlocked = (dateString) => {
+    return blockedDates.some((item) => item.blocked_date === dateString);
+  };
+
+  const isWeekdayBlocked = (dateString) => {
+    const weekday = getWeekdayFromDate(dateString);
+    return blockedWeekdays.some((item) => item.weekday === weekday);
+  };
+
   const loadInitialData = async () => {
     try {
-      const [servicesData, barbersData] = await Promise.all([
+      const [servicesData, barbersData, datesData, weekdaysData] = await Promise.all([
         getServices(),
         getBarbers(),
+        getBlockedDates(),
+        getBlockedWeekdays(),
       ]);
 
       setServicesList(servicesData || []);
       setBarbers(barbersData || []);
+      setBlockedDates(datesData || []);
+      setBlockedWeekdays(weekdaysData || []);
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível carregar os dados.');
     }
   };
-  useEffect(() => {
-  if (selectedBarber && selectedDay) {
-    loadUnavailableTimes();
-  } else {
-    setUnavailableTimes([]);
-  }
-}, [selectedBarber, selectedDay]);
 
-const loadUnavailableTimes = async () => {
-  try {
-    const timesData = await getUnavailableTimes({
-      barberId: selectedBarber.id,
-      appointmentDate: selectedDay.dateString,
-    });
+  const loadUnavailableTimes = async () => {
+    try {
+      const [appointmentsTimes, blockedTimes] = await Promise.all([
+        getUnavailableTimes({
+          barberId: selectedBarber.id,
+          appointmentDate: selectedDay.dateString,
+        }),
+        getBlockedTimesByDate(selectedDay.dateString),
+      ]);
 
-    setUnavailableTimes(timesData);
-  } catch (error) {
-    setUnavailableTimes([]);
-  }
-};
+      const blockedTimesList = (blockedTimes || []).map((item) => item.blocked_time);
+
+      setUnavailableTimes([
+        ...(appointmentsTimes || []),
+        ...blockedTimesList,
+      ]);
+    } catch (error) {
+      setUnavailableTimes([]);
+    }
+  };
+
+  const handleDayPress = (day) => {
+    if (isDateBlocked(day.dateString)) {
+      Alert.alert(
+        'Data indisponível',
+        'Esta data foi bloqueada pela barbearia. Escolha outro dia.'
+      );
+      return;
+    }
+
+    if (isWeekdayBlocked(day.dateString)) {
+      Alert.alert(
+        'Dia indisponível',
+        'A barbearia não atende neste dia da semana. Escolha outro dia.'
+      );
+      return;
+    }
+
+    setSelectedDay(day);
+    setSelectedTime(null);
+  };
 
   const toggleService = (service) => {
     setSelectedServices((prev) => {
       const exists = prev.some((s) => s.id === service.id);
-      return exists
-        ? prev.filter((s) => s.id !== service.id)
-        : [...prev, service];
+      return exists ? prev.filter((s) => s.id !== service.id) : [...prev, service];
     });
+  };
+
+  const resetForm = () => {
+    setSelectedServices([]);
+    setSelectedBarber(null);
+    setSelectedDay(null);
+    setSelectedTime(null);
+  };
+
+  const saveNewAppointment = async () => {
+    await createAppointment({
+      userId: user.id,
+      barberId: selectedBarber.id,
+      services: selectedServices,
+      appointmentDate: selectedDay.dateString,
+      appointmentTime: selectedTime,
+    });
+
+    setUnavailableTimes((prev) => [...prev, selectedTime]);
+    resetForm();
+
+    Alert.alert('Sucesso', 'Agendamento confirmado!');
+  };
+
+  const replaceExistingAppointment = async (existingBooking) => {
+    try {
+      setBookingLoading(true);
+
+      await cancelAppointment(existingBooking.id);
+      await saveNewAppointment();
+    } catch (error) {
+      Alert.alert(
+        'Erro',
+        error.message || 'Não foi possível substituir o agendamento.'
+      );
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  const confirmBooking = async () => {
+    if (!selectedServices.length) {
+      Alert.alert('Erro', 'Selecione um serviço.');
+      return;
+    }
+
+    if (isDateBlocked(selectedDay.dateString) || isWeekdayBlocked(selectedDay.dateString)) {
+      Alert.alert(
+        'Data indisponível',
+        'Esta data não está disponível para agendamento.'
+      );
+      return;
+    }
+
+    try {
+      setBookingLoading(true);
+
+      const existingBooking = await getUserNextAppointment(user.id);
+
+      if (existingBooking) {
+        setBookingLoading(false);
+
+        Alert.alert(
+          'Agendamento já existente',
+          'Você já possui um horário marcado. Deseja cancelar o anterior e marcar este novo?',
+          [
+            { text: 'Não', style: 'cancel' },
+            {
+              text: 'Sim, substituir',
+              onPress: () => replaceExistingAppointment(existingBooking),
+            },
+          ]
+        );
+
+        return;
+      }
+
+      await saveNewAppointment();
+    } catch (error) {
+      Alert.alert(
+        'Erro',
+        error.message || 'Não foi possível confirmar o agendamento.'
+      );
+    } finally {
+      setBookingLoading(false);
+    }
   };
 
   const total = selectedServices.reduce((sum, s) => sum + s.price, 0);
@@ -224,46 +284,21 @@ const loadUnavailableTimes = async () => {
     selectedTime &&
     selectedServices.length > 0;
 
-  const confirmBooking = async () => {
-  try {
-    setBookingLoading(true);
-    if (!selectedServices.length) {
-      Alert.alert('Erro', 'Selecione um serviço.');
-      return;
-    }
+  const markedDates = blockedDates.reduce((acc, item) => {
+  acc[item.blocked_date] = {
+    disabled: true,
+    disableTouchEvent: true,
+  };
 
-    await createAppointment({
-      userId: user.id,
-      barberId: selectedBarber.id,
-      serviceId: selectedServices[0].id,
-      appointmentDate: selectedDay.dateString,
-      appointmentTime: selectedTime,
-    });
-    Alert.alert('Sucesso', 'Agendamento confirmado!');
-    setUnavailableTimes((prev) => [...prev, selectedTime]);
+  return acc;
+}, {});
 
-    setSelectedServices([]);
-    setSelectedBarber(null);
-    setSelectedDay(null);
-    setSelectedTime(null);
-  } catch (error) {
-    if (error.code === '23505') {
-      Alert.alert(
-        'Horário indisponível',
-        'Esse horário acabou de ser reservado. Escolha outro horário.'
-      );
-
-      setUnavailableTimes((prev) => [...prev, selectedTime]);
-      setSelectedTime(null);
-      return;
-    }
-
-    Alert.alert('Erro', error.message);
+  if (selectedDay?.dateString) {
+    markedDates[selectedDay.dateString] = {
+      selected: true,
+      selectedColor: theme.primary,
+    };
   }
-  finally {
-  setBookingLoading(false);
-}
-};
 
   const pressIn = () => {
     Animated.spring(buttonScale, {
@@ -285,10 +320,7 @@ const loadUnavailableTimes = async () => {
 
   return (
     <ScrollView
-      contentContainerStyle={[
-        styles.container,
-        { backgroundColor: theme.background },
-      ]}
+      contentContainerStyle={[styles.container, { backgroundColor: theme.background }]}
       showsVerticalScrollIndicator={false}
     >
       <FadeInSection delay={0}>
@@ -354,16 +386,53 @@ const loadUnavailableTimes = async () => {
           <Calendar
             key={`calendar-${themeName}`}
             minDate={new Date().toISOString().split('T')[0]}
-            onDayPress={(day) => {
-              setSelectedDay(day);
-              setSelectedTime(null);
+            onDayPress={handleDayPress}
+            dayComponent={({ date }) => {
+              const todayDate = new Date().toISOString().split('T')[0];
+
+              const isPast = date.dateString < todayDate;
+
+              const blocked =
+                isPast ||
+                isDateBlocked(date.dateString) ||
+                isWeekdayBlocked(date.dateString);
+
+              const selected = selectedDay?.dateString === date.dateString;
+
+              return (
+                <Text
+                  onPress={() => {
+                    if (!blocked) {
+                      handleDayPress(date);
+                    }
+                  }}
+                  style={{
+                    color: blocked
+                      ? theme.muted
+                      : selected
+                        ? '#ffffff'
+                        : theme.text,
+                    backgroundColor: selected
+                      ? theme.primary
+                      : blocked
+                        ? `${theme.muted}33`
+                        : 'transparent',
+                    textDecorationLine: blocked ? 'line-through' : 'none',
+                    opacity: blocked ? 0.45 : 1,
+                    width: 34,
+                    height: 34,
+                    borderRadius: 17,
+                    textAlign: 'center',
+                    textAlignVertical: 'center',
+                    fontWeight: selected ? 'bold' : '500',
+                    paddingTop: 7,
+                  }}
+                >
+                  {date.day}
+                </Text>
+              );
             }}
-            markedDates={{
-              [selectedDay?.dateString]: {
-                selected: true,
-                selectedColor: theme.primary,
-              },
-            }}
+            markedDates={markedDates}
             theme={{
               backgroundColor: theme.card,
               calendarBackground: theme.card,
@@ -407,15 +476,7 @@ const loadUnavailableTimes = async () => {
       </FadeInSection>
 
       <FadeInSection delay={420}>
-        <View
-          style={[
-            styles.summaryCard,
-            {
-              backgroundColor: theme.card,
-              borderColor: theme.muted,
-            },
-          ]}
-        >
+        <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.muted }]}>
           <Text style={[styles.summaryTitle, { color: theme.text }]}>
             Resumo do agendamento
           </Text>
@@ -439,12 +500,7 @@ const loadUnavailableTimes = async () => {
             Hora: {selectedTime || 'Não selecionada'}
           </Text>
 
-          <View
-            style={[
-              styles.summaryDivider,
-              { backgroundColor: theme.muted },
-            ]}
-          />
+          <View style={[styles.summaryDivider, { backgroundColor: theme.muted }]} />
 
           <Text style={[styles.total, { color: theme.primary }]}>
             TOTAL: R$ {total.toFixed(2)}
@@ -464,15 +520,13 @@ const loadUnavailableTimes = async () => {
               styles.buttonConfirm,
               {
                 backgroundColor: theme.primary,
-                opacity: isFormValid ? 1 : 0.5,
+                opacity: isFormValid && !bookingLoading ? 1 : 0.5,
                 transform: [{ scale: buttonScale }],
               },
             ]}
           >
             <Text style={styles.confirmText}>
-              {bookingLoading
-                ? 'Confirmando...'
-                : 'Confirmar agendamento'}
+              {bookingLoading ? 'Confirmando...' : 'Confirmar agendamento'}
             </Text>
           </Animated.View>
         </TouchableWithoutFeedback>

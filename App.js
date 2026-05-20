@@ -11,6 +11,7 @@ import HomeScreen from './screens/HomeScreen';
 import PlansScreen from './screens/PlansScreen';
 import AuthScreen from './screens/AuthScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import AdminScreen from './screens/AdminScreen';
 import { themes } from './styles/theme';
 import { supabase } from './lib/supabase';
 import { logoutUser } from './services/authService';
@@ -35,6 +36,8 @@ function AnimatedTabIcon({ routeName, color, size, focused }) {
   else if (routeName === 'Agendar') iconName = focused ? 'calendar' : 'calendar-outline';
   else if (routeName === 'Planos') iconName = focused ? 'card' : 'card-outline';
   else if (routeName === 'Perfil') iconName = focused ? 'person' : 'person-outline';
+  else if (routeName === 'Admin')
+  iconName = focused ? 'settings' : 'settings-outline';
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
@@ -127,6 +130,7 @@ export default function App() {
         phone: data.phone,
         plan: null,
         booking: null,
+        role: data.role || 'client',
       });
     }
   }
@@ -223,26 +227,39 @@ export default function App() {
 
         <Tab.Screen name="Planos">
           {(props) => (
-            <AnimatedScreenWrapper>
-              <PlansScreen {...props} theme={theme} />
-            </AnimatedScreenWrapper>
+            <PlansScreen
+              {...props}
+              theme={theme}
+              user={user}
+            />
           )}
         </Tab.Screen>
 
-        <Tab.Screen name="Perfil">
-          {(props) => (
-            <AnimatedScreenWrapper>
-              {user ? (
-                <ProfileScreen
+        <Tab.Screen name={user?.role === 'admin' ? 'Admin' : 'Perfil'}>
+            {(props) => (
+              <AnimatedScreenWrapper>
+                {user?.role === 'admin' ? (
+                  <AdminScreen
                   {...props}
                   theme={theme}
                   user={user}
                   onLogout={handleLogout}
                 />
-              ) : (
-                <AuthScreen {...props} theme={theme} onLogin={handleLogin} />
-              )}
-            </AnimatedScreenWrapper>
+                ) : user ? (
+                  <ProfileScreen
+                    {...props}
+                    theme={theme}
+                    user={user}
+                    onLogout={handleLogout}
+                  />
+                ) : (
+                  <AuthScreen
+                    {...props}
+                    theme={theme}
+                    onLogin={handleLogin}
+                  />
+                )}
+              </AnimatedScreenWrapper>
           )}
         </Tab.Screen>
       </Tab.Navigator>
