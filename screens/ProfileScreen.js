@@ -260,7 +260,11 @@ export default function ProfileScreen({ theme, user, onLogout }) {
                 theme={theme}
                 icon="checkmark-circle-outline"
                 label="Status"
-                value={subscription.status || 'active'}
+                value={
+                  subscription.status === 'pending_payment'
+                    ? 'Aguardando pagamento'
+                    : subscription.status
+                }
               />
 
               {!!subscription.plans?.description && (

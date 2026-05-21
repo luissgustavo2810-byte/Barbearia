@@ -29,6 +29,10 @@ import {
   updatePlanStatus,
   getAllPlansAdmin,
   updatePlan,
+  getDashboardStats,
+  getPendingPaymentsCount,
+  getPaymentsAdmin,
+  updatePaymentStatus,
 } from '../services/bookingService';
 
 LocaleConfig.defaultLocale = 'pt-br';
@@ -162,6 +166,9 @@ export default function AdminScreen({ theme, onLogout }) {
   const [blockedTimes, setBlockedTimes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [plans, setPlans] = useState([]);
+  const [dashboard, setDashboard] = useState(null);
+  const [pendingPayments, setPendingPayments] = useState(0);
+  const [payments, setPayments] = useState([]);
   const [expandedSection, setExpandedSection] = useState('agenda');
   const [creatingPlan, setCreatingPlan] = useState(false);
 
@@ -177,6 +184,9 @@ export default function AdminScreen({ theme, onLogout }) {
     loadAppointments();
     loadBlockedData();
     loadPlans();
+    loadDashboard();
+    loadPendingPayments();
+    loadPayments();
   }, [selectedDate]);
 
   const loadBlockedData = async () => {
@@ -211,6 +221,27 @@ export default function AdminScreen({ theme, onLogout }) {
       setPlans(data || []);
     } catch (error) {}
   };
+
+  const loadDashboard = async () => {
+  try {
+    const data = await getDashboardStats();
+    setDashboard(data);
+  } catch (error) {}
+};
+
+const loadPendingPayments = async () => {
+  try {
+    const count = await getPendingPaymentsCount();
+    setPendingPayments(count);
+  } catch (error) {}
+};
+
+const loadPayments = async () => {
+  try {
+    const data = await getPaymentsAdmin();
+    setPayments(data || []);
+  } catch (error) {}
+};
 
   const handleCancelAppointment = (appointmentId) => {
     Alert.alert('Cancelar horário', 'Tem certeza que deseja cancelar este agendamento?', [
@@ -450,6 +481,198 @@ export default function AdminScreen({ theme, onLogout }) {
         </View>
 
         <AdminSection
+        theme={theme}
+        icon="stats-chart-outline"
+        title="Dashboard"
+        subtitle="Resumo geral da barbearia."
+        expanded={expandedSection === 'dashboard'}
+        onToggle={() =>
+          setExpandedSection(
+            expandedSection === 'dashboard'
+              ? null
+              : 'dashboard'
+          )
+        }
+      >
+        <View style={styles.dashboardGrid}>
+          <View
+            style={[
+              styles.dashboardCard,
+              {
+                backgroundColor: theme.background,
+                borderColor: theme.muted,
+              },
+            ]}
+          >
+            <Ionicons
+              name="cash-outline"
+              size={24}
+              color={theme.primary}
+            />
+
+            <Text
+              style={[
+                styles.dashboardValue,
+                { color: theme.text },
+              ]}
+            >
+              R$ {Number(
+                dashboard?.revenueToday || 0
+              ).toFixed(2)}
+            </Text>
+
+            <Text
+              style={[
+                styles.dashboardLabel,
+                { color: theme.text },
+              ]}
+            >
+              Faturamento hoje
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.dashboardCard,
+              {
+                backgroundColor: theme.background,
+                borderColor: theme.muted,
+              },
+            ]}
+          >
+            <Ionicons
+              name="wallet-outline"
+              size={24}
+              color={theme.primary}
+            />
+
+            <Text
+              style={[
+                styles.dashboardValue,
+                { color: theme.text },
+              ]}
+            >
+              R$ {Number(
+                dashboard?.revenueMonth || 0
+              ).toFixed(2)}
+            </Text>
+
+            <Text
+              style={[
+                styles.dashboardLabel,
+                { color: theme.text },
+              ]}
+            >
+              Faturamento mensal
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.dashboardCard,
+              {
+                backgroundColor: theme.background,
+                borderColor: theme.muted,
+              },
+            ]}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={24}
+              color={theme.primary}
+            />
+
+            <Text
+              style={[
+                styles.dashboardValue,
+                { color: theme.text },
+              ]}
+            >
+              {dashboard?.appointmentsToday || 0}
+            </Text>
+
+            <Text
+              style={[
+                styles.dashboardLabel,
+                { color: theme.text },
+              ]}
+            >
+              Agendamentos hoje
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.dashboardCard,
+              {
+                backgroundColor: theme.background,
+                borderColor: theme.muted,
+              },
+            ]}
+          >
+            <Ionicons
+              name="diamond-outline"
+              size={24}
+              color={theme.primary}
+            />
+
+            <Text
+              style={[
+                styles.dashboardValue,
+                { color: theme.text },
+              ]}
+            >
+              {dashboard?.activeSubscriptions || 0}
+            </Text>
+
+            <Text
+              style={[
+                styles.dashboardLabel,
+                { color: theme.text },
+              ]}
+            >
+              Assinantes ativos
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.dashboardCard,
+              {
+                backgroundColor: theme.background,
+                borderColor: theme.muted,
+              },
+            ]}
+          >
+            <Ionicons
+              name="cash-outline"
+              size={24}
+              color={theme.primary}
+            />
+
+            <Text
+              style={[
+                styles.dashboardValue,
+                { color: theme.text },
+              ]}
+            >
+              {pendingPayments}
+            </Text>
+
+            <Text
+              style={[
+                styles.dashboardLabel,
+                { color: theme.text },
+              ]}
+            >
+              Pagamentos pendentes
+            </Text>
+          </View>
+
+        </View>
+      </AdminSection>
+
+
+        <AdminSection
           theme={theme}
           icon="calendar-outline"
           title="Agenda do dia"
@@ -608,6 +831,156 @@ export default function AdminScreen({ theme, onLogout }) {
             </View>
           </BlockOptionCard>
         </AdminSection>
+        <AdminSection
+  theme={theme}
+  icon="cash-outline"
+  title="Financeiro"
+  subtitle="Controle os pagamentos da barbearia."
+  expanded={expandedSection === 'financeiro'}
+  onToggle={() =>
+    setExpandedSection(
+      expandedSection === 'financeiro'
+        ? null
+        : 'financeiro'
+    )
+  }
+>
+  <View style={styles.list}>
+    {payments.length === 0 && (
+      <Text style={[styles.emptyText, { color: theme.text }]}>
+        Nenhum pagamento encontrado.
+      </Text>
+    )}
+
+    {payments.map((payment) => (
+      <View
+        key={payment.id}
+        style={[
+          styles.appointmentCard,
+          {
+            backgroundColor: theme.background,
+            borderColor: theme.muted,
+          },
+        ]}
+      >
+        <View style={styles.appointmentHeader}>
+          <View
+            style={[
+              styles.iconBox,
+              {
+                backgroundColor: `${theme.primary}18`,
+              },
+            ]}
+          >
+            <Ionicons
+              name="wallet-outline"
+              size={18}
+              color={theme.primary}
+            />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text
+              style={[
+                styles.clientName,
+                { color: theme.text },
+              ]}
+            >
+              {payment.profiles?.name || 'Cliente'}
+            </Text>
+
+            <Text
+              style={[
+                styles.detailText,
+                { color: theme.primary },
+              ]}
+            >
+              R$ {Number(payment.amount || 0).toFixed(2)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.details}>
+          <Text
+            style={[
+              styles.detailText,
+              { color: theme.text },
+            ]}
+          >
+            Método: {payment.method}
+          </Text>
+
+          <Text
+            style={[
+              styles.detailText,
+              { color: theme.text },
+            ]}
+          >
+            Tipo: {payment.type}
+          </Text>
+
+          <Text
+            style={[
+              styles.detailText,
+              {
+                color:
+                  payment.status === 'paid'
+                    ? '#2ecc71'
+                    : '#f39c12',
+              },
+            ]}
+          >
+            Status: {payment.status}
+          </Text>
+        </View>
+
+        {payment.status !== 'paid' && (
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: theme.primary,
+                marginTop: 14,
+              },
+            ]}
+            onPress={async () => {
+              try {
+                await updatePaymentStatus(
+                  payment.id,
+                  'paid'
+                );
+
+                await loadPayments();
+                await loadPendingPayments();
+                await loadDashboard();
+
+                Alert.alert(
+                  'Sucesso',
+                  'Pagamento confirmado.'
+                );
+              } catch (error) {
+                Alert.alert(
+                  'Erro',
+                  'Não foi possível confirmar.'
+                );
+              }
+            }}
+          >
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={18}
+              color="#fff"
+            />
+
+            <Text style={styles.actionButtonText}>
+              Confirmar pagamento
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    ))}
+  </View>
+</AdminSection>
 
         <AdminSection
           theme={theme}
@@ -1153,4 +1526,32 @@ const styles = StyleSheet.create({
     minHeight: 90,
     textAlignVertical: 'top',
   },
+
+  dashboardGrid: {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  gap: 12,
+},
+
+dashboardCard: {
+  width: '47%',
+  borderWidth: 1,
+  borderRadius: 18,
+  paddingVertical: 22,
+  paddingHorizontal: 14,
+  alignItems: 'center',
+},
+
+dashboardValue: {
+  fontSize: 20,
+  fontWeight: 'bold',
+  marginTop: 10,
+},
+
+dashboardLabel: {
+  fontSize: 13,
+  opacity: 0.7,
+  marginTop: 6,
+  textAlign: 'center',
+},
 });
