@@ -78,9 +78,9 @@ function SectionCard({ theme, icon, title, subtitle, children }) {
       {children}
     </View>
   );
-}
 
-export default function HomeScreen({ theme, themeName, user }) {
+}export default function HomeScreen({ theme, themeName, user, navigation }) {
+
   const [servicesList, setServicesList] = useState([]);
   const [barbers, setBarbers] = useState([]);
   const [unavailableTimes, setUnavailableTimes] = useState([]);
@@ -210,6 +210,7 @@ export default function HomeScreen({ theme, themeName, user }) {
     resetForm();
 
     Alert.alert('Sucesso', 'Agendamento confirmado!');
+    navigation.navigate('Pagamentos');
   };
 
   const replaceExistingAppointment = async (existingBooking) => {

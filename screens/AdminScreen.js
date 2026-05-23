@@ -33,6 +33,8 @@ import {
   getPendingPaymentsCount,
   getPaymentsAdmin,
   updatePaymentStatus,
+  getPixKey,
+  updatePixKey,
 } from '../services/bookingService';
 
 LocaleConfig.defaultLocale = 'pt-br';
@@ -169,6 +171,8 @@ export default function AdminScreen({ theme, onLogout }) {
   const [dashboard, setDashboard] = useState(null);
   const [pendingPayments, setPendingPayments] = useState(0);
   const [payments, setPayments] = useState([]);
+  const [pixKey, setPixKey] = useState('');
+  const [savingPixKey, setSavingPixKey] = useState(false);
   const [expandedSection, setExpandedSection] = useState('agenda');
   const [creatingPlan, setCreatingPlan] = useState(false);
 
@@ -187,6 +191,7 @@ export default function AdminScreen({ theme, onLogout }) {
     loadDashboard();
     loadPendingPayments();
     loadPayments();
+    loadPixKey();
   }, [selectedDate]);
 
   const loadBlockedData = async () => {
@@ -241,6 +246,27 @@ const loadPayments = async () => {
     const data = await getPaymentsAdmin();
     setPayments(data || []);
   } catch (error) {}
+};
+
+const loadPixKey = async () => {
+  try {
+    const key = await getPixKey();
+    setPixKey(key || '');
+  } catch (error) {}
+};
+
+const handleSavePixKey = async () => {
+  try {
+    setSavingPixKey(true);
+
+    await updatePixKey(pixKey);
+
+    Alert.alert('Sucesso', 'Chave PIX atualizada.');
+  } catch (error) {
+    Alert.alert('Erro', 'Não foi possível atualizar a chave PIX.');
+  } finally {
+    setSavingPixKey(false);
+  }
 };
 
   const handleCancelAppointment = (appointmentId) => {
@@ -845,6 +871,46 @@ const loadPayments = async () => {
     )
   }
 >
+
+<View
+  style={[
+    styles.appointmentCard,
+    {
+      backgroundColor: theme.background,
+      borderColor: theme.muted,
+    },
+  ]}
+>
+  <Text style={[styles.clientName, { color: theme.text }]}>
+    Chave PIX da barbearia
+  </Text>
+
+  <TextInput
+    style={[
+      styles.input,
+      {
+        color: theme.text,
+        borderColor: theme.muted,
+        backgroundColor: theme.card,
+      },
+    ]}
+    placeholder="Digite a chave PIX"
+    placeholderTextColor={theme.muted}
+    value={pixKey}
+    onChangeText={setPixKey}
+  />
+
+  <TouchableOpacity
+    style={[styles.actionButton, { backgroundColor: theme.primary }]}
+    onPress={handleSavePixKey}
+  >
+    <Ionicons name="save-outline" size={18} color="#fff" />
+    <Text style={styles.actionButtonText}>
+      {savingPixKey ? 'Salvando...' : 'Salvar chave PIX'}
+    </Text>
+  </TouchableOpacity>
+</View>
+
   <View style={styles.list}>
     {payments.length === 0 && (
       <Text style={[styles.emptyText, { color: theme.text }]}>

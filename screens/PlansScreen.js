@@ -78,7 +78,7 @@ function AnimatedPlanCard({ children, onPress, style }) {
   );
 }
 
-export default function PlansScreen({ theme, user }) {
+export default function PlansScreen({ theme, user, navigation }) {
   const [plans, setPlans] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [subscription, setSubscription] = useState(null);
@@ -163,6 +163,7 @@ export default function PlansScreen({ theme, user }) {
       });
 
       await loadPlansAndSubscription();
+      navigation.navigate('Pagamentos');
 
       Alert.alert('Sucesso', `Plano ${selectedPlan.name} assinado!`);
     } catch (error) {

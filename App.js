@@ -12,6 +12,7 @@ import PlansScreen from './screens/PlansScreen';
 import AuthScreen from './screens/AuthScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import AdminScreen from './screens/AdminScreen';
+import PaymentsScreen from './screens/PaymentsScreen';
 import { themes } from './styles/theme';
 import { supabase } from './lib/supabase';
 import { logoutUser } from './services/authService';
@@ -35,6 +36,7 @@ function AnimatedTabIcon({ routeName, color, size, focused }) {
   if (routeName === 'Início') iconName = focused ? 'home' : 'home-outline';
   else if (routeName === 'Agendar') iconName = focused ? 'calendar' : 'calendar-outline';
   else if (routeName === 'Planos') iconName = focused ? 'card' : 'card-outline';
+  else if (routeName === 'Pagamentos') iconName = focused ? 'wallet' : 'wallet-outline';
   else if (routeName === 'Perfil') iconName = focused ? 'person' : 'person-outline';
   else if (routeName === 'Admin')
   iconName = focused ? 'settings' : 'settings-outline';
@@ -234,6 +236,19 @@ export default function App() {
             />
           )}
         </Tab.Screen>
+        {user && user?.role !== 'admin' && (
+          <Tab.Screen name="Pagamentos">
+            {(props) => (
+              <AnimatedScreenWrapper>
+                <PaymentsScreen
+                  {...props}
+                  theme={theme}
+                  user={user}
+                />
+              </AnimatedScreenWrapper>
+            )}
+          </Tab.Screen>
+        )}
 
         <Tab.Screen name={user?.role === 'admin' ? 'Admin' : 'Perfil'}>
             {(props) => (

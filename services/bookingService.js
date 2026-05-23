@@ -581,3 +581,24 @@ export async function getPaymentsAdmin() {
 
   return data;
 }
+
+export async function getPixKey() {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'pix_key')
+    .single();
+
+  if (error) throw error;
+
+  return data?.value;
+}
+
+export async function updatePixKey(value) {
+  const { error } = await supabase
+    .from('app_settings')
+    .update({ value })
+    .eq('key', 'pix_key');
+
+  if (error) throw error;
+}
